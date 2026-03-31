@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, TextInput, RefreshControl,
+  ScrollView, SafeAreaView, TextInput, RefreshControl, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +17,41 @@ const SERVICES = [
 ];
 
 const NOTICES = ['Urgent', 'Infrastructure', 'Health', 'Culture', 'Tourism'];
+
+const NEWS_ITEMS = [
+  {
+    title: 'Pokhara Regional Airport initiates full night-landing capability operations.',
+    tag: 'Tourism & Dev',
+    time: 'LATEST',
+    image:
+      'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=900&q=80',
+    summary: 'CAAN confirmed technical evaluations for IFR operations are complete and active.',
+  },
+  {
+    title: 'Lakeside Organic Market to host Weekend Harvest Festival.',
+    time: '2 HOURS AGO',
+    image:
+      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: 'Gandaki Province allocates funds for New Cricket Stadium.',
+    time: '5 HOURS AGO',
+    image:
+      'https://images.unsplash.com/photo-1593766788306-28561086694e?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: 'Digital permit queue reduced in Ward 17 after system rollout.',
+    time: '8 HOURS AGO',
+    image:
+      'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    title: 'Tourism board opens sunrise shuttle route around Phewa circuit.',
+    time: '1 DAY AGO',
+    image:
+      'https://images.unsplash.com/photo-1518391846015-55a9cc003b25?auto=format&fit=crop&w=600&q=80',
+  },
+];
 
 export default function HomeScreen({ navigation }: any) {
   const { citizen } = useStore();
@@ -122,6 +157,11 @@ export default function HomeScreen({ navigation }: any) {
                 <Text style={styles.tempText}>24°C</Text>
                 <Text style={styles.condText}>Mostly Sunny · Pokhara-6</Text>
               </View>
+              <View style={styles.aqiBox}>
+                <Text style={styles.aqiLabel}>AQI Index</Text>
+                <Text style={styles.aqiNum}>42</Text>
+                <Text style={styles.aqiState}>Excellent</Text>
+              </View>
             </View>
             <View style={styles.weatherStats}>
               <View style={styles.weatherStat}>
@@ -156,6 +196,36 @@ export default function HomeScreen({ navigation }: any) {
               <MaterialIcons name="arrow-forward" size={14} color={Colors.primary} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Pokhara Samachar */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Pokhara Samachar <Text style={styles.sectionSub}>/ Top 5</Text></Text>
+          <TouchableOpacity><Text style={styles.viewAll}>Digital Edition</Text></TouchableOpacity>
+        </View>
+
+        <TouchableOpacity activeOpacity={0.92} style={styles.heroNewsCard}>
+          <Image source={{ uri: NEWS_ITEMS[0].image }} style={styles.heroNewsImage} />
+          <View style={styles.heroNewsOverlay}>
+            <View style={styles.heroTagWrap}>
+              <Text style={styles.heroTag}>{NEWS_ITEMS[0].tag}</Text>
+              <Text style={styles.heroLatest}>{NEWS_ITEMS[0].time}</Text>
+            </View>
+            <Text style={styles.heroNewsTitle}>{NEWS_ITEMS[0].title}</Text>
+            <Text style={styles.heroNewsSummary}>{NEWS_ITEMS[0].summary}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.newsGrid}>
+          {NEWS_ITEMS.slice(1).map((item) => (
+            <TouchableOpacity key={item.title} activeOpacity={0.9} style={styles.newsItemCard}>
+              <Image source={{ uri: item.image }} style={styles.newsThumb} />
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={2} style={styles.newsItemTitle}>{item.title}</Text>
+                <Text style={styles.newsItemTime}>{item.time}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* E-Sewa Services */}
@@ -233,23 +303,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: 'rgba(247,250,249,0.9)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,59,90,0.05)',
+    paddingHorizontal: 20, paddingVertical: 12,
+    backgroundColor: 'rgba(247,250,249,0.96)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(0,59,90,0.06)',
   },
   topLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuBtn: { padding: 6, borderRadius: Radius.full },
+  menuBtn: { padding: 6, borderRadius: Radius.full, marginLeft: -2 },
   appName: { fontSize: 18, fontWeight: '900', color: Colors.primary, letterSpacing: -0.3 },
-  notifBtn: { padding: 6, borderRadius: Radius.full },
-  scrollContent: { padding: 16, paddingBottom: 100 },
-  welcome: { marginBottom: 16 },
+  notifBtn: { padding: 6, borderRadius: Radius.full, marginRight: -2 },
+  scrollContent: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 130 },
+  welcome: { marginBottom: 14 },
   dateText: { fontSize: 11, color: Colors.onSurfaceVariant, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' },
   greetText: { fontSize: 30, fontWeight: '900', color: Colors.primary, letterSpacing: -0.8, marginTop: 2 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: Colors.surfaceContainerHigh,
     borderRadius: Radius.full, paddingHorizontal: 18,
-    paddingVertical: 4, marginBottom: 24, ...Shadow.sm,
+    paddingVertical: 4, marginBottom: 18, ...Shadow.sm,
   },
   searchInput: { flex: 1, fontSize: 15, color: Colors.onSurface, paddingVertical: 12 },
   micBtn: {
@@ -257,11 +327,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.primary },
   sectionSub: { fontWeight: '400', color: Colors.outline },
   viewAll: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  noticesRow: { gap: 16, paddingRight: 16, paddingBottom: 8, marginBottom: 24 },
+  noticesRow: { gap: 14, paddingRight: 12, paddingBottom: 8, marginBottom: 14 },
   noticeItem: { alignItems: 'center', gap: 6, width: 72 },
   noticeCircle: {
     width: 72, height: 72, borderRadius: 36, padding: 3,
@@ -277,28 +347,41 @@ const styles = StyleSheet.create({
   },
   noticeLabel: { fontSize: 10, fontWeight: '700', color: Colors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, textAlign: 'center' },
   noticeLabelUrgent: { color: Colors.secondary },
-  bentoRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  weatherCard: { flex: 1.4, borderRadius: Radius.xl, padding: 20, overflow: 'hidden', ...Shadow.md },
+  bentoRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  weatherCard: { flex: 1.35, borderRadius: Radius.xl, padding: 18, overflow: 'hidden', ...Shadow.md },
   weatherBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(0,59,90,0.35)',
     paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: Radius.full, marginBottom: 16,
+    borderRadius: Radius.full, marginBottom: 14,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   weatherBadgeText: { color: 'rgba(255,255,255,0.85)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  weatherMain: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  weatherMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 14 },
   tempText: { fontSize: 32, fontWeight: '900', color: '#fff' },
   condText: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  aqiBox: {
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: Radius.lg,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'flex-end',
+  },
+  aqiLabel: { fontSize: 9, color: 'rgba(255,255,255,0.60)', textTransform: 'uppercase', fontWeight: '700' },
+  aqiNum: { fontSize: 20, color: Colors.primaryFixedDim, fontWeight: '900' },
+  aqiState: { fontSize: 10, color: '#7CE2A7', fontWeight: '700' },
   weatherStats: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 12 },
   weatherStat: { flex: 1, alignItems: 'center' },
   weatherStatLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
   weatherStatVal: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   wardCard: {
-    flex: 1, borderRadius: Radius.xl, padding: 18,
+    flex: 1, borderRadius: Radius.xl, padding: 16,
     backgroundColor: Colors.surfaceContainerLowest, ...Shadow.sm,
   },
-  wardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  wardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   wardIcon: {
     width: 44, height: 44, borderRadius: Radius.lg,
     backgroundColor: Colors.primaryFixed, alignItems: 'center', justifyContent: 'center',
@@ -309,22 +392,67 @@ const styles = StyleSheet.create({
   },
   wardBadgeText: { color: Colors.onPrimaryFixedVariant, fontSize: 10, fontWeight: '700' },
   wardTitle: { fontSize: 16, fontWeight: '800', color: Colors.primary, marginBottom: 6 },
-  wardDesc: { fontSize: 11, color: Colors.onSurfaceVariant, lineHeight: 16, marginBottom: 14 },
+  wardDesc: { fontSize: 11, color: Colors.onSurfaceVariant, lineHeight: 16, marginBottom: 12 },
   wardBtn: {
     backgroundColor: Colors.surfaceContainerHigh, borderRadius: Radius.lg,
     paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   wardBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
-  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  heroNewsCard: {
+    borderRadius: Radius.xl,
+    overflow: 'hidden',
+    minHeight: 200,
+    marginBottom: 10,
+    ...Shadow.sm,
+  },
+  heroNewsImage: { width: '100%', height: 200 },
+  heroNewsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.40)',
+    justifyContent: 'flex-end',
+    padding: 14,
+  },
+  heroTagWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  heroTag: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  heroLatest: {
+    backgroundColor: Colors.secondary,
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.md,
+  },
+  heroNewsTitle: { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 22 },
+  heroNewsSummary: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 6, lineHeight: 17 },
+  newsGrid: { gap: 10, marginBottom: 14 },
+  newsItemCard: {
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.lg,
+    padding: 10,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  newsThumb: { width: 58, height: 58, borderRadius: Radius.md, backgroundColor: Colors.surfaceContainerHigh },
+  newsItemTitle: { fontSize: 12, fontWeight: '700', color: Colors.primary, lineHeight: 17 },
+  newsItemTime: { fontSize: 10, color: Colors.onSurfaceVariant, marginTop: 4, letterSpacing: 0.5 },
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   serviceCard: {
-    width: '47%', aspectRatio: 1,
+    width: '48.5%', height: 140,
     backgroundColor: Colors.surfaceContainerLowest,
     borderRadius: Radius.xl, alignItems: 'center', justifyContent: 'center', gap: 10,
     borderWidth: 1, borderColor: Colors.surfaceContainer, ...Shadow.sm,
   },
   serviceLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: Colors.onSurface },
   digitalCard: {
-    backgroundColor: Colors.primary, borderRadius: Radius.xl, padding: 20, marginBottom: 16,
+    backgroundColor: Colors.primary, borderRadius: Radius.xl, padding: 18, marginBottom: 12,
   },
   digitalTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   digitalLabel: { fontSize: 11, fontWeight: '700', color: '#fff', letterSpacing: 1, textTransform: 'uppercase' },
@@ -344,10 +472,10 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 22, fontWeight: '900', color: Colors.primary },
   statLbl: { fontSize: 11, color: Colors.onSurfaceVariant, marginTop: 2 },
   fab: {
-    position: 'absolute', bottom: 90, right: 16,
+    position: 'absolute', bottom: 104, right: 18,
     backgroundColor: Colors.secondary,
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 18, paddingVertical: 14,
+    paddingHorizontal: 16, paddingVertical: 12,
     borderRadius: Radius.full, ...Shadow.lg,
   },
   fabText: { color: '#fff', fontSize: 12, fontWeight: '700' },

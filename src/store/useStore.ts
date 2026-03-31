@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { deleteSecureToken, getSecureToken, setSecureToken } from '../utils/secureStorage';
 
 interface Citizen {
   nid: string;
@@ -21,6 +22,7 @@ interface RequestRecord {
 interface AppState {
   // Auth
   isLoggedIn: boolean;
+  isGuest: boolean;
   citizen: Citizen | null;
   token: string | null;
   language: string;
@@ -30,6 +32,7 @@ interface AppState {
 
   // Actions
   setLanguage: (lang: string) => void;
+  continueAsGuest: () => Promise<void>;
   login: (citizen: Citizen, token: string) => Promise<void>;
   logout: () => Promise<void>;
   addRequest: (req: RequestRecord) => Promise<void>;
@@ -39,6 +42,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
+  isGuest: false,
   citizen: null,
   token: null,
   language: 'ne', // default Nepali
@@ -49,15 +53,22 @@ export const useStore = create<AppState>((set, get) => ({
     AsyncStorage.setItem('app_language', lang);
   },
 
+  continueAsGuest: async () => {
+    await AsyncStorage.setItem('guest_mode', '1');
+    set({ isGuest: true, isLoggedIn: false, citizen: null, token: null });
+  },
+
   login: async (citizen, token) => {
-    await AsyncStorage.setItem('pratibimba_token', token);
+    await setSecureToken(token);
     await AsyncStorage.setItem('citizen_data', JSON.stringify(citizen));
-    set({ isLoggedIn: true, citizen, token });
+    await AsyncStorage.removeItem('guest_mode');
+    set({ isLoggedIn: true, isGuest: false, citizen, token });
   },
 
   logout: async () => {
-    await AsyncStorage.multiRemove(['pratibimba_token', 'citizen_data']);
-    set({ isLoggedIn: false, citizen: null, token: null });
+    await deleteSecureToken();
+    await AsyncStorage.multiRemove(['citizen_data', 'guest_mode']);
+    set({ isLoggedIn: false, isGuest: false, citizen: null, token: null });
   },
 
   addRequest: async (req) => {
@@ -78,15 +89,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   loadFromStorage: async () => {
     try {
-      const [token, citizenStr, requestsStr, lang] = await Promise.all([
-        AsyncStorage.getItem('pratibimba_token'),
+      const [token, citizenStr, requestsStr, lang, guestMode] = await Promise.all([
+        getSecureToken(),
         AsyncStorage.getItem('citizen_data'),
         AsyncStorage.getItem('my_requests'),
         AsyncStorage.getItem('app_language'),
+        AsyncStorage.getItem('guest_mode'),
       ]);
       set({
         token,
         isLoggedIn: !!token,
+        isGuest: !token && guestMode === '1',
         citizen: citizenStr ? JSON.parse(citizenStr) : null,
         myRequests: requestsStr ? JSON.parse(requestsStr) : [],
         language: lang || 'ne',

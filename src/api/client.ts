@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSecureToken } from '../utils/secureStorage';
 
 // ── Change this to your server IP when testing on physical device
 // Use your computer's local IP, not localhost
@@ -14,7 +15,7 @@ const api = axios.create({
 
 // Auto-attach JWT token to every request
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('pratibimba_token');
+  const token = await getSecureToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -69,26 +70,109 @@ export const verifyAPI = {
 
 export const authAPI = {
 
+  scanIdentityDocument: async (documentType: 'nid' | 'citizenship' | 'license', imageUri: string) => {
+    const formData = new FormData();
+    formData.append('document_type', documentType);
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: `${documentType}.jpg`,
+    } as any);
+
+    try {
+      const res = await api.post('/citizen/ocr', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return {
+        success: !!res.data?.success,
+        extracted: res.data?.extracted || {},
+        message: res.data?.message,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        extracted: {},
+        message: error?.response?.data?.message || 'OCR failed. Please enter details manually.',
+      };
+    }
+  },
+
+  loginWithScannedDocument: async (documentType: 'nid' | 'citizenship' | 'license', imageUri: string) => {
+    const formData = new FormData();
+    formData.append('document_type', documentType);
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: `${documentType}.jpg`,
+    } as any);
+
+    try {
+      const res = await api.post('/citizen/auth/ocr', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return {
+        success: !!res.data?.success,
+        citizen: res.data?.citizen,
+        token: res.data?.token,
+        message: res.data?.message,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.response?.data?.message || 'Direct scan login unavailable',
+      };
+    }
+  },
+
   // For citizen login — validate NID against ward records
   // Note: citizen auth is different from officer auth
   // For prototype: use NID as identifier, validate basic format
   loginCitizen: async (nid: string, citizenshipNo: string) => {
-    // In production: POST to /citizen/auth with NID + citizenship
-    // For prototype: return mock success if format is valid
-    if (!nid || nid.length < 5) {
-      throw new Error('Invalid NID format');
-    }
-    // Mock response for prototype
-    return {
-      success: true,
-      citizen: {
+    try {
+      const res = await api.post('/citizen/auth', {
         nid,
         citizenship_no: citizenshipNo,
-        name: 'नागरिक',  // Will be filled from OCR
-        ward_code: 'NPL-04-33-09',
-      },
-      token: `citizen-token-${nid}`,
-    };
+      });
+
+      if (res.data?.success && res.data?.citizen && res.data?.token) {
+        return {
+          success: true,
+          citizen: res.data.citizen,
+          token: res.data.token,
+          message: res.data?.message,
+        };
+      }
+
+      return {
+        success: false,
+        message: res.data?.message || 'Invalid credentials',
+      };
+    } catch (error: any) {
+      // If backend explicitly rejects credentials, surface that error and avoid mock login.
+      if (error?.response) {
+        return {
+          success: false,
+          message: error.response?.data?.message || 'Invalid credentials',
+        };
+      }
+
+      // Network/offline fallback for prototype continuity.
+      if (!nid || nid.length < 5) {
+        return { success: false, message: 'Invalid NID format' };
+      }
+
+      return {
+        success: true,
+        citizen: {
+          nid,
+          citizenship_no: citizenshipNo,
+          name: 'नागरिक',
+          ward_code: 'NPL-04-33-09',
+        },
+        token: `citizen-token-${nid}`,
+        message: 'Offline mode: signed in with local fallback',
+      };
+    }
   },
 };
 

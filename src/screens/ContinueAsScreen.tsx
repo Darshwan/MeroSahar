@@ -6,8 +6,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Radius, Shadow } from '../constants/theme';
+import { useStore } from '../store/useStore';
 
 export default function ContinueAsScreen({ navigation }: any) {
+  const { continueAsGuest } = useStore();
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
@@ -61,7 +64,7 @@ export default function ContinueAsScreen({ navigation }: any) {
         {/* Guest Card */}
         <TouchableOpacity
           style={styles.guestCard}
-          onPress={() => navigation.navigate('Main')}
+          onPress={continueAsGuest}
           activeOpacity={0.88}
         >
           <View style={styles.guestIcon}>

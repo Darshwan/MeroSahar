@@ -8,8 +8,52 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Radius } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
+const POKHARA_LAT = 28.2096;
+const POKHARA_LON = 83.9856;
+
+function getAqiLabel(aqi: number): string {
+  if (aqi <= 50) return 'Good';
+  if (aqi <= 100) return 'Moderate';
+  if (aqi <= 150) return 'Unhealthy';
+  if (aqi <= 200) return 'Very Unhealthy';
+  return 'Hazardous';
+}
 
 export default function SplashScreen({ navigation }: any) {
+  const [tempText, setTempText] = React.useState('18°C');
+  const [aqiText, setAqiText] = React.useState('Good');
+
+  useEffect(() => {
+    const loadAtmosphere = async () => {
+      try {
+        const [weatherRes, airRes] = await Promise.all([
+          fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${POKHARA_LAT}&longitude=${POKHARA_LON}&current=temperature_2m`
+          ),
+          fetch(
+            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${POKHARA_LAT}&longitude=${POKHARA_LON}&current=us_aqi`
+          ),
+        ]);
+
+        const weatherData = await weatherRes.json();
+        const airData = await airRes.json();
+
+        const temp = weatherData?.current?.temperature_2m;
+        const aqi = airData?.current?.us_aqi;
+
+        if (typeof temp === 'number') {
+          setTempText(`${Math.round(temp)}°C`);
+        }
+        if (typeof aqi === 'number') {
+          setAqiText(getAqiLabel(aqi));
+        }
+      } catch {
+        // Keep existing fallback values for offline-first startup.
+      }
+    };
+
+    loadAtmosphere();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -51,14 +95,14 @@ export default function SplashScreen({ navigation }: any) {
             <Text style={styles.bentoLabel}>Weather</Text>
             <View style={styles.bentoValue}>
               <MaterialIcons name="wb-sunny" size={14} color="#fff" />
-              <Text style={styles.bentoValueText}>18°C</Text>
+              <Text style={styles.bentoValueText}>{tempText}</Text>
             </View>
           </View>
           <View style={styles.bentoCard}>
             <Text style={styles.bentoLabel}>Air Quality</Text>
             <View style={styles.bentoValue}>
               <MaterialIcons name="air" size={14} color="#fff" />
-              <Text style={styles.bentoValueText}>Good</Text>
+              <Text style={styles.bentoValueText}>{aqiText}</Text>
             </View>
           </View>
         </View>

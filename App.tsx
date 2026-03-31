@@ -106,7 +106,7 @@ function MainTabs() {
 }
 
 export default function App() {
-  const { isLoggedIn, loadFromStorage } = useStore();
+  const { isLoggedIn, isGuest, loadFromStorage } = useStore();
 
   useEffect(() => {
     loadFromStorage();
@@ -117,7 +117,7 @@ export default function App() {
       <SafeAreaProvider>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!isLoggedIn ? (
+            {!(isLoggedIn || isGuest) ? (
               // ── Onboarding Flow ───────────────────────────────
               <>
                 <Stack.Screen name="Splash"      component={SplashScreen} />
