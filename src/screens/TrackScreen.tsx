@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
-import { citizenAPI, documentAPI, API_BASE } from '../api/client';
+import { citizenAPI, documentAPI } from '../api/client';
 import * as Linking from 'expo-linking';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
@@ -19,13 +19,22 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string; l
 };
 
 export default function TrackScreen() {
-  const { myRequests, updateRequest } = useStore();
+  const { myRequests, updateRequest, syncRequestsFromServer, citizen, isLoggedIn } = useStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
 
   // Refresh all request statuses from server
   const refreshStatuses = async () => {
-    for (const req of myRequests) {
+    try {
+      const listRes = await citizenAPI.getMyRequests();
+      if (listRes.success) {
+        await syncRequestsFromServer(listRes.requests || []);
+      }
+    } catch {
+      // Continue with local records if list endpoint is unavailable.
+    }
+
+    const latestRequests = useStore.getState().myRequests;
+    for (const req of latestRequests) {
       if (req.status === 'PENDING' || req.status === 'UNDER_REVIEW') {
         try {
           const res = await citizenAPI.getRequestStatus(req.request_id);
@@ -56,6 +65,22 @@ export default function TrackScreen() {
     const url = documentAPI.getPDFUrl(dtid);
     await Linking.openURL(url);
   };
+
+  if (!isLoggedIn || !citizen) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Track Requests</Text>
+          <Text style={styles.headerSub}>Citizen access only</Text>
+        </View>
+        <View style={styles.empty}>
+          <MaterialIcons name="lock" size={40} color={Colors.outline} style={{ opacity: 0.6 }} />
+          <Text style={styles.emptyTitle}>Sign in as Citizen</Text>
+          <Text style={styles.emptySub}>Request tracking is available only after verified citizen login.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (myRequests.length === 0) {
     return (

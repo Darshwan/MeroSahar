@@ -1,11 +1,11 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { getSecureToken } from '../utils/secureStorage';
 
-// ── Change this to your server IP when testing on physical device
-// Use your computer's local IP, not localhost
-// Example: 'http://192.168.1.5:8080'
-export const API_BASE = 'http://192.168.1.100:8080';
+// Prefer Expo config (`expo.extra.apiBaseUrl`) and trim trailing slashes.
+const configBase = String(Constants.expoConfig?.extra?.apiBaseUrl || '').trim();
+const fallbackBase = 'http://192.168.1.100:8080';
+export const API_BASE = (configBase || fallbackBase).replace(/\/+$/, '');
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -50,8 +50,33 @@ export const citizenAPI = {
   },
 
   // GET /citizen/requests (all requests for this citizen)
-  // Note: implement this endpoint in Go backend if needed
-  // For prototype: store request IDs locally in AsyncStorage
+  getMyRequests: async () => {
+    const res = await api.get('/citizen/requests');
+    const payload = res.data;
+    const incoming = Array.isArray(payload?.requests)
+      ? payload.requests
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+    const requests = incoming
+      .filter((r: any) => r?.request_id)
+      .map((r: any) => ({
+        request_id: String(r.request_id),
+        document_type: String(r.document_type || 'UNKNOWN'),
+        purpose: String(r.purpose || ''),
+        status: String(r.status || 'PENDING'),
+        submitted_at: String(r.submitted_at || new Date().toISOString()),
+        dtid: r.dtid ? String(r.dtid) : undefined,
+        qr_data: r.qr_data ? String(r.qr_data) : undefined,
+      }));
+
+    return {
+      success: payload?.success !== false,
+      requests,
+      message: payload?.message,
+    };
+  },
 };
 
 // ── VERIFICATION API ──────────────────────────────────────────

@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
-import { Text } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import SplashScreen    from './src/screens/SplashScreen';
@@ -25,7 +25,9 @@ const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 // ── Bottom Tab Navigator (shown after login) ──────────────────
-function MainTabs() {
+function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citizen' }) {
+  const isCitizen = sessionRole === 'citizen';
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -61,26 +63,30 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen
-        name="Request"
-        component={RequestScreen}
-        options={{
-          tabBarLabel: 'Sifaris',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="description" size={24} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Track"
-        component={TrackScreen}
-        options={{
-          tabBarLabel: 'Track',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="track-changes" size={24} color={color} />
-          ),
-        }}
-      />
+      {isCitizen && (
+        <Tab.Screen
+          name="Request"
+          component={RequestScreen}
+          options={{
+            tabBarLabel: 'Sifaris',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="description" size={24} color={color} />
+            ),
+          }}
+        />
+      )}
+      {isCitizen && (
+        <Tab.Screen
+          name="Track"
+          component={TrackScreen}
+          options={{
+            tabBarLabel: 'Track',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="track-changes" size={24} color={color} />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="Verify"
         component={VerifyScreen}
@@ -106,18 +112,30 @@ function MainTabs() {
 }
 
 export default function App() {
-  const { isLoggedIn, isGuest, loadFromStorage } = useStore();
+  const { isHydrated, sessionRole, loadFromStorage } = useStore();
 
   useEffect(() => {
     loadFromStorage();
   }, []);
+
+  if (!isHydrated) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f7faf9' }}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!(isLoggedIn || isGuest) ? (
+            {sessionRole === 'anonymous' ? (
               // ── Onboarding Flow ───────────────────────────────
               <>
                 <Stack.Screen name="Splash"      component={SplashScreen} />
@@ -127,7 +145,9 @@ export default function App() {
               </>
             ) : (
               // ── Main App ──────────────────────────────────────
-              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen name="Main">
+                {() => <MainTabs sessionRole={sessionRole} />}
+              </Stack.Screen>
             )}
           </Stack.Navigator>
         </NavigationContainer>

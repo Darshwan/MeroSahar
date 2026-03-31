@@ -20,7 +20,7 @@ const DOC_TYPES = [
 ];
 
 export default function RequestScreen({ navigation }: any) {
-  const { citizen, addRequest } = useStore();
+  const { citizen, addRequest, isLoggedIn } = useStore();
   const [docType, setDocType]   = useState('SIFARIS');
   const [purpose, setPurpose]   = useState('');
   const [phone, setPhone]       = useState('');
@@ -95,6 +95,24 @@ export default function RequestScreen({ navigation }: any) {
       setLoading(false);
     }
   };
+
+  if (!isLoggedIn || !citizen) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Request Document</Text>
+          <Text style={styles.headerSub}>सिफारिस अनुरोध</Text>
+        </View>
+        <View style={styles.restrictedWrap}>
+          <MaterialIcons name="lock" size={36} color={Colors.outline} />
+          <Text style={styles.restrictedTitle}>Citizen Sign-In Required</Text>
+          <Text style={styles.restrictedSub}>
+            Please login as a verified citizen to submit municipal document requests.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -223,4 +241,7 @@ const styles = StyleSheet.create({
   infoText:         { fontSize: 12, color: Colors.onPrimaryFixedVariant, lineHeight: 18, flex: 1 },
   submitBtn:        { backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18, borderRadius: Radius.full, marginTop: 24, ...Shadow.lg },
   submitText:       { color: '#fff', fontSize: 16, fontWeight: '700' },
+  restrictedWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  restrictedTitle:  { fontSize: 18, fontWeight: '800', color: Colors.primary, marginTop: 14 },
+  restrictedSub:    { fontSize: 13, color: Colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', lineHeight: 20 },
 });
