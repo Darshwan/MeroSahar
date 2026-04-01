@@ -8,7 +8,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
-import { citizenAPI } from '../api/client';
+import { citizenAPI, REQUIRE_LIVE_BACKEND } from '../api/client';
+import { NotificationService } from '../utils/notifications';
 
 const DOC_TYPES = [
   { value: 'SIFARIS',              label: 'सिफारिस',        icon: 'description'    },
@@ -59,6 +60,8 @@ export default function RequestScreen({ navigation }: any) {
           submitted_at:  response.submitted_at,
         });
 
+        await NotificationService.requestReceived(response.request_id);
+
         Toast.show({
           type: 'success',
           text1: 'Request Submitted!',
@@ -76,6 +79,15 @@ export default function RequestScreen({ navigation }: any) {
         Toast.show({ type: 'error', text1: 'Failed', text2: response.message });
       }
     } catch (e: any) {
+      if (REQUIRE_LIVE_BACKEND) {
+        Toast.show({
+          type: 'error',
+          text1: 'Submission Failed',
+          text2: 'Server/database unavailable. Please try again shortly.',
+        });
+        return;
+      }
+
       // Demo mode fallback
       const demoId = `MS-2082-${String(Math.floor(Math.random() * 9000) + 1000).padStart(6, '0')}`;
       await addRequest({

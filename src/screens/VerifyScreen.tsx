@@ -6,7 +6,8 @@ import {
 import { Camera, CameraView, BarcodeScanningResult } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Radius, Shadow } from '../constants/theme';
-import { verifyAPI } from '../api/client';
+import Toast from 'react-native-toast-message';
+import { verifyAPI, REQUIRE_LIVE_BACKEND } from '../api/client';
 
 const STATUS_UI: Record<string, { icon: string; color: string; bg: string; title: string }> = {
   VALID:          { icon: 'check-circle', color: '#2d7a52', bg: '#d9f2e3', title: '✓ Valid Document' },
@@ -22,6 +23,7 @@ export default function VerifyScreen() {
   const [dtid, setDtid]             = useState('');
   const [loading, setLoading]       = useState(false);
   const [result, setResult]         = useState<any>(null);
+  const [lastError, setLastError]   = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -33,9 +35,8 @@ export default function VerifyScreen() {
   const handleBarCode = async ({ data }: BarcodeScanningResult) => {
     if (scanned) return;
     setScanned(true);
-    // Extract DTID from QR URL
-    // QR contains: "verify.pratibimba.gov.np/NPL-04-33-09-2082-000001"
-    const extracted = data.split('/').pop() || data;
+    // Supports both raw DTID and URL-based QR payloads.
+    const extracted = String(data || '').split('?')[0].split('/').pop() || String(data || '');
     setDtid(extracted);
     await doVerify(extracted);
   };
@@ -45,10 +46,22 @@ export default function VerifyScreen() {
     if (!target) return;
     setLoading(true);
     setResult(null);
+    setLastError(null);
     try {
       const res = await verifyAPI.verifyDocument(target);
       setResult(res);
-    } catch (e) {
+      if (res?.success === false) {
+        throw new Error(res?.message || 'Verification failed');
+      }
+    } catch (e: any) {
+      const message = e?.message || 'Verification failed';
+
+      if (REQUIRE_LIVE_BACKEND) {
+        setLastError(message);
+        Toast.show({ type: 'error', text1: 'Verification Failed', text2: message });
+        return;
+      }
+
       // Demo fallback
       if (target.startsWith('NPL-')) {
         setResult({
@@ -73,6 +86,7 @@ export default function VerifyScreen() {
     setScanned(false);
     setResult(null);
     setDtid('');
+    setLastError(null);
   };
 
   const cfg = result ? STATUS_UI[result.status] || STATUS_UI.NOT_FOUND : null;
@@ -165,6 +179,13 @@ export default function VerifyScreen() {
                 </>
               )}
             </TouchableOpacity>
+          </View>
+        )}
+
+        {lastError && !result && (
+          <View style={styles.errorCard}>
+            <MaterialIcons name="error-outline" size={16} color={Colors.secondary} />
+            <Text style={styles.errorText}>{lastError}</Text>
           </View>
         )}
 
@@ -267,4 +288,6 @@ const styles = StyleSheet.create({
   scanAgainText:      { fontSize: 13, fontWeight: '700', color: Colors.primary },
   zkNote:             { flexDirection: 'row', gap: 8, backgroundColor: Colors.primaryFixed, padding: 14, borderRadius: Radius.lg, alignItems: 'flex-start' },
   zkText:             { fontSize: 11, color: Colors.onPrimaryFixedVariant, lineHeight: 17, flex: 1 },
+  errorCard:          { flexDirection: 'row', gap: 8, backgroundColor: '#fdf0ef', borderRadius: Radius.lg, padding: 12, borderWidth: 1, borderColor: 'rgba(175,47,35,0.2)', marginBottom: 14 },
+  errorText:          { flex: 1, color: Colors.secondary, fontSize: 12, lineHeight: 17 },
 });

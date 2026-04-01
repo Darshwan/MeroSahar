@@ -2,29 +2,34 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, SafeAreaView, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Modal,
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { authAPI } from '../api/client';
-
-type ScanDocType = 'nid' | 'citizenship' | 'license';
+import OCRScanScreen from './OCRScanScreen';
 
 export default function LoginScreen({ navigation }: any) {
   const [nid, setNid]                         = useState('');
   const [citizenshipNo, setCitizenshipNo]     = useState('');
+  const [showOCR, setShowOCR]                 = useState(false);
   const [loading, setLoading]                 = useState(false);
   const citizenshipRef = useRef<TextInput>(null);
   const { login } = useStore();
 
   const handleLoginWithPayload = async (nidValue: string, citizenshipValue: string) => {
     const response = await authAPI.loginCitizen(nidValue.trim(), citizenshipValue.trim());
-    if (response.success && response.citizen && response.token) {
+    if (
+      response.success &&
+      'citizen' in response &&
+      'token' in response &&
+      response.citizen &&
+      response.token
+    ) {
       await login(response.citizen, response.token);
       Toast.show({
         type: 'success',
@@ -65,89 +70,6 @@ export default function LoginScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const runDocumentScan = async (docType: ScanDocType) => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({
-        type: 'error',
-        text1: 'Camera Permission Needed',
-        text2: 'Please grant camera access to scan your document.',
-      });
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-      allowsEditing: false,
-      cameraType: ImagePicker.CameraType.back,
-    });
-
-    if (result.canceled || !result.assets?.length) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const imageUri = result.assets[0].uri;
-
-      // Try direct scan-login route first for best UX.
-      const directLogin = await authAPI.loginWithScannedDocument(docType, imageUri);
-      if (directLogin.success && directLogin.citizen && directLogin.token) {
-        await login(directLogin.citizen, directLogin.token);
-        Toast.show({
-          type: 'success',
-          text1: 'Scan Login Successful',
-          text2: `Namaste, ${directLogin.citizen.name}`,
-        });
-        return;
-      }
-
-      // Fallback to OCR extraction and prefill fields.
-      const ocrResult = await authAPI.scanIdentityDocument(docType, imageUri);
-      const extracted = ocrResult.extracted || {};
-
-      const nextNid = String(extracted.nid || extracted.national_id || nid || '').trim();
-      const nextCitizenship = String(
-        extracted.citizenship_no || extracted.citizenship || citizenshipNo || ''
-      ).trim();
-
-      if (nextNid) {
-        setNid(nextNid);
-      }
-      if (nextCitizenship) {
-        setCitizenshipNo(nextCitizenship);
-      }
-
-      if (nextNid && nextCitizenship) {
-        await handleLoginWithPayload(nextNid, nextCitizenship);
-      } else {
-        Toast.show({
-          type: 'info',
-          text1: 'Scan Captured',
-          text2: ocrResult.message || 'Please review extracted data and continue login.',
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Scan Failed',
-        text2: error?.message || 'Unable to process document scan.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openIdentityScanChooser = () => {
-    Alert.alert('Scan Identity Document', 'Choose the document to scan', [
-      { text: 'National ID', onPress: () => runDocumentScan('nid') },
-      { text: 'Citizenship Card', onPress: () => runDocumentScan('citizenship') },
-      { text: 'Driving License', onPress: () => runDocumentScan('license') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
   };
 
   return (
@@ -209,7 +131,7 @@ export default function LoginScreen({ navigation }: any) {
                   autoCapitalize="none"
                   editable={!loading}
                 />
-                <TouchableOpacity style={styles.scanBtn} onPress={openIdentityScanChooser}>
+                <TouchableOpacity style={styles.scanBtn} onPress={() => setShowOCR(true)}>
                   <MaterialIcons name="camera-enhance" size={22} color={Colors.primary} />
                 </TouchableOpacity>
               </View>
@@ -231,7 +153,7 @@ export default function LoginScreen({ navigation }: any) {
                   autoCapitalize="none"
                   editable={!loading}
                 />
-                <TouchableOpacity style={styles.scanBtn} onPress={openIdentityScanChooser}>
+                <TouchableOpacity style={styles.scanBtn} onPress={() => setShowOCR(true)}>
                   <MaterialIcons name="photo-camera" size={22} color={Colors.primary} />
                 </TouchableOpacity>
               </View>
@@ -279,6 +201,17 @@ export default function LoginScreen({ navigation }: any) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={showOCR} animationType="slide" onRequestClose={() => setShowOCR(false)}>
+        <OCRScanScreen
+          onResult={(fields) => {
+            if (fields.nid) setNid(fields.nid);
+            if (fields.citizenshipNo) setCitizenshipNo(fields.citizenshipNo);
+            setShowOCR(false);
+          }}
+          onClose={() => setShowOCR(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }

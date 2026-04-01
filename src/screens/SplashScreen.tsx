@@ -22,6 +22,7 @@ function getAqiLabel(aqi: number): string {
 export default function SplashScreen({ navigation }: any) {
   const [tempText, setTempText] = React.useState('18°C');
   const [aqiText, setAqiText] = React.useState('Good');
+  const [showSplashImage, setShowSplashImage] = React.useState(true);
 
   useEffect(() => {
     const loadAtmosphere = async () => {
@@ -61,13 +62,21 @@ export default function SplashScreen({ navigation }: any) {
 
       {/* Hero Background */}
       <View style={styles.bgContainer}>
-        {/* Mountain gradient — replace with actual image */}
+        {/* Always-available fallback gradient */}
         <LinearGradient
           colors={['#1a3a52', '#003b5a', '#0a2535']}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
         />
+        {showSplashImage && (
+          <ImageBackground
+            source={require('../../assets/Splash.png')}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            onError={() => setShowSplashImage(false)}
+          />
+        )}
         {/* Overlay gradient */}
         <LinearGradient
           colors={['transparent', 'rgba(0,59,90,0.4)', 'rgba(24,28,28,0.92)']}

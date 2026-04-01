@@ -1,15 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, RefreshControl,
-  ActivityIndicator,
+  ScrollView, SafeAreaView, RefreshControl, Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { citizenAPI, documentAPI } from '../api/client';
 import * as Linking from 'expo-linking';
+import QRDisplay from '../components/QRDisplay';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
   PENDING:      { color: '#b7791f', bg: '#fef9ee', icon: 'schedule',      label: 'Pending Review' },
@@ -21,15 +22,20 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string; l
 export default function TrackScreen() {
   const { myRequests, updateRequest, syncRequestsFromServer, citizen, isLoggedIn } = useStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [showQR, setShowQR] = useState<string | null>(null);
 
   // Refresh all request statuses from server
   const refreshStatuses = async () => {
+    let listFailed = false;
     try {
       const listRes = await citizenAPI.getMyRequests();
       if (listRes.success) {
         await syncRequestsFromServer(listRes.requests || []);
+        setLastSyncedAt(new Date());
       }
     } catch {
+      listFailed = true;
       // Continue with local records if list endpoint is unavailable.
     }
 
@@ -48,11 +54,21 @@ export default function TrackScreen() {
         } catch (e) { /* offline — keep local status */ }
       }
     }
+
+    if (listFailed) {
+      Toast.show({
+        type: 'info',
+        text1: 'Using cached requests',
+        text2: 'Could not refresh full list from server.',
+      });
+    }
   };
 
   // Auto-refresh when screen comes into focus
   useFocusEffect(useCallback(() => {
     refreshStatuses();
+    const interval = setInterval(refreshStatuses, 30000);
+    return () => clearInterval(interval);
   }, [myRequests.length]));
 
   const onRefresh = async () => {
@@ -102,7 +118,10 @@ export default function TrackScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Track Requests</Text>
-        <Text style={styles.headerSub}>{myRequests.length} request{myRequests.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.headerSub}>
+          {myRequests.length} request{myRequests.length !== 1 ? 's' : ''}
+          {lastSyncedAt ? ` · synced ${lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+        </Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.list}
@@ -171,6 +190,13 @@ export default function TrackScreen() {
                     <MaterialIcons name="download" size={18} color="#fff" />
                     <Text style={styles.downloadText}>Download PDF</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.qrBtn}
+                    onPress={() => setShowQR(req.dtid!)}
+                  >
+                    <MaterialIcons name="qr-code-2" size={18} color={Colors.primary} />
+                    <Text style={styles.qrBtnText}>Show QR</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -187,6 +213,24 @@ export default function TrackScreen() {
           );
         })}
       </ScrollView>
+      <Modal visible={!!showQR} animationType="slide" transparent onRequestClose={() => setShowQR(null)}>
+        <View style={styles.qrModalBackdrop}>
+          <View style={styles.qrModalCard}>
+            <Text style={styles.qrModalTitle}>Document QR Code</Text>
+            {showQR && (
+              <QRDisplay
+                dtid={showQR}
+                documentType={myRequests.find((r) => r.dtid === showQR)?.document_type || ''}
+                issuedDate={new Date().toLocaleDateString()}
+                wardCode={citizen?.ward_code || ''}
+              />
+            )}
+            <TouchableOpacity style={styles.qrCloseBtn} onPress={() => setShowQR(null)}>
+              <Text style={styles.qrCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -223,7 +267,14 @@ const styles = StyleSheet.create({
   dtidValue:        { fontSize: 11, color: Colors.success, fontFamily: 'monospace', flex: 1 },
   downloadBtn:      { backgroundColor: Colors.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: Radius.lg },
   downloadText:     { color: '#fff', fontSize: 13, fontWeight: '700' },
+  qrBtn:            { marginTop: 10, backgroundColor: Colors.surfaceContainerLow, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: Radius.lg },
+  qrBtnText:        { color: Colors.primary, fontSize: 13, fontWeight: '700' },
   rejectedBox:      { backgroundColor: '#fdf0ef', borderRadius: Radius.lg, padding: 14, marginTop: 12, borderWidth: 1, borderColor: 'rgba(192,57,43,0.2)' },
   rejectedTitle:    { fontSize: 12, fontWeight: '700', color: Colors.secondary, marginBottom: 4 },
   rejectedReason:   { fontSize: 12, color: Colors.onSurfaceVariant },
+  qrModalBackdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  qrModalCard:      { backgroundColor: Colors.background, borderRadius: 24, padding: 24, width: '100%', alignItems: 'center' },
+  qrModalTitle:     { fontSize: 18, fontWeight: '800', color: Colors.primary, marginBottom: 20 },
+  qrCloseBtn:       { marginTop: 20, paddingVertical: 14, paddingHorizontal: 32, backgroundColor: Colors.surfaceContainerLow, borderRadius: Radius.full },
+  qrCloseText:      { fontWeight: '700', color: Colors.primary },
 });

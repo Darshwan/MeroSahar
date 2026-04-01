@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import SplashScreen    from './src/screens/SplashScreen';
@@ -13,6 +15,8 @@ import LanguageScreen  from './src/screens/LanguageScreen';
 import ContinueAsScreen from './src/screens/ContinueAsScreen';
 import LoginScreen     from './src/screens/LoginScreen';
 import HomeScreen      from './src/screens/HomeScreen';
+import SewaScreen      from './src/screens/Sewascreen';
+import CitizenPortalScreen from './src/screens/CitizenPortalScreen';
 import RequestScreen   from './src/screens/RequestScreen';
 import TrackScreen     from './src/screens/TrackScreen';
 import VerifyScreen    from './src/screens/VerifyScreen';
@@ -20,6 +24,19 @@ import ProfileScreen   from './src/screens/ProfileScreen';
 
 import { Colors } from './src/constants/theme';
 import { useStore } from './src/store/useStore';
+import { NotificationService } from './src/utils/notifications';
+import { startNetworkMonitor } from './src/utils/offlineQueue';
+
+// Configure foreground notification behavior for Expo's current NotificationBehavior type.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -27,6 +44,13 @@ const Tab   = createBottomTabNavigator();
 // ── Bottom Tab Navigator (shown after login) ──────────────────
 function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citizen' }) {
   const isCitizen = sessionRole === 'citizen';
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
+
+  const tabBarHeight = Math.max(isCompact ? 64 : 72, (isCompact ? 48 : 56) + insets.bottom);
+  const iconSize = isCompact ? 20 : 24;
+  const labelSize = isCompact ? 9 : 10;
 
   return (
     <Tab.Navigator
@@ -36,16 +60,16 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
           backgroundColor: 'rgba(255,255,255,0.95)',
           borderTopColor: '#e6e9e8',
           borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 8,
+          height: tabBarHeight,
+          paddingBottom: Math.max(insets.bottom, isCompact ? 8 : 10),
+          paddingTop: isCompact ? 6 : 8,
         },
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.outline,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: labelSize,
           fontWeight: '700',
-          letterSpacing: 0.8,
+          letterSpacing: isCompact ? 0.4 : 0.8,
           textTransform: 'uppercase',
         },
       }}
@@ -58,8 +82,28 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
           tabBarIcon: ({ color, focused }) => (
             <MaterialIcons
               name={focused ? 'home' : 'home'}
-              size={24} color={color}
+              size={iconSize} color={color}
             />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Sewa"
+        component={SewaScreen}
+        options={{
+          tabBarLabel: 'Sewa',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="account-balance" size={iconSize} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Explore"
+        component={CitizenPortalScreen}
+        options={{
+          tabBarLabel: 'Pokhara',
+          tabBarIcon: ({ color }) => (
+            <MaterialIcons name="location-city" size={iconSize} color={color} />
           ),
         }}
       />
@@ -70,7 +114,7 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
           options={{
             tabBarLabel: 'Sifaris',
             tabBarIcon: ({ color }) => (
-              <MaterialIcons name="description" size={24} color={color} />
+              <MaterialIcons name="description" size={iconSize} color={color} />
             ),
           }}
         />
@@ -82,7 +126,7 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
           options={{
             tabBarLabel: 'Track',
             tabBarIcon: ({ color }) => (
-              <MaterialIcons name="track-changes" size={24} color={color} />
+              <MaterialIcons name="track-changes" size={iconSize} color={color} />
             ),
           }}
         />
@@ -93,7 +137,7 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
         options={{
           tabBarLabel: 'Verify',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="qr-code-scanner" size={24} color={color} />
+            <MaterialIcons name="qr-code-scanner" size={iconSize} color={color} />
           ),
         }}
       />
@@ -103,7 +147,7 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="person" size={24} color={color} />
+            <MaterialIcons name="person" size={iconSize} color={color} />
           ),
         }}
       />
@@ -116,6 +160,33 @@ export default function App() {
 
   useEffect(() => {
     loadFromStorage();
+
+    // Register for push notifications on app boot.
+    NotificationService.register();
+
+    // Auto-flush offline queue when connectivity is restored.
+    const unsubscribe = startNetworkMonitor((result) => {
+      if (result.success > 0) {
+        Toast.show({
+          type:  'success',
+          text1: 'Back Online',
+          text2: `${result.success} queued request${result.success > 1 ? 's' : ''} synced to server`,
+        });
+      }
+    });
+
+    // Listen for push notification taps.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as any;
+      if (data?.screen) {
+        console.log('[Notifications] Tapped:', data.screen);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      sub.remove();
+    };
   }, []);
 
   if (!isHydrated) {
@@ -134,7 +205,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              gestureEnabled: true,
+              ...TransitionPresets.SlideFromRightIOS,
+            }}
+          >
             {sessionRole === 'anonymous' ? (
               // ── Onboarding Flow ───────────────────────────────
               <>

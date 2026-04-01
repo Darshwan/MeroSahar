@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, TextInput, RefreshControl, Image,
+  ScrollView, SafeAreaView, TextInput, RefreshControl, Image, ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
-import { statsAPI } from '../api/client';
+import { statsAPI, systemAPI, uiActionAPI } from '../api/client';
 
 const SERVICES = [
   { icon: 'receipt-long', label: 'Pay Tax',    screen: 'Request' },
@@ -54,18 +56,54 @@ const NEWS_ITEMS = [
 ];
 
 export default function HomeScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
+  const isVeryCompact = width < 350;
+
   const { citizen } = useStore();
   const [stats, setStats] = useState<any>(null);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-  const loadStats = async () => {
+  const runUiAction = async (key: string, fn: () => Promise<any>, successMessage?: string) => {
+    setActionLoading(key);
     try {
-      const res = await statsAPI.getStats();
-      if (res.success) setStats(res.stats);
-    } catch (e) {
-      // Demo mode — no server needed for home screen
+      const res = await fn();
+      if (res?.success === false) {
+        throw new Error(res?.message || 'Action failed');
+      }
+      if (successMessage) {
+        Toast.show({ type: 'success', text1: successMessage });
+      }
+      return res;
+    } catch (e: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Request Failed',
+        text2: e?.message || 'Unable to complete action',
+      });
+      return null;
+    } finally {
+      setActionLoading(null);
     }
+  };
+
+  const loadStats = async () => {
+    const [statsRes, healthRes] = await Promise.all([
+      statsAPI.getStats(),
+      systemAPI.checkDatabaseHealth(),
+    ]);
+
+    if (statsRes?.success && statsRes?.stats) {
+      setStats(statsRes.stats);
+    } else {
+      setStats(null);
+    }
+
+    setDbConnected(healthRes?.dbConnected === true);
   };
 
   const onRefresh = async () => {
@@ -87,21 +125,31 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
           <Text style={styles.appName}>Hamro Pokhara</Text>
         </View>
-        <TouchableOpacity style={styles.notifBtn}>
+        <TouchableOpacity
+          style={styles.notifBtn}
+          onPress={() => runUiAction('notifications', () => uiActionAPI.getNotifications(), 'Notifications synced')}
+        >
           <MaterialIcons name="notifications-none" size={24} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: isCompact ? 12 : 18,
+            paddingTop: isCompact ? 10 : 14,
+            paddingBottom: (isCompact ? 110 : 130) + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
       >
         {/* Welcome */}
         <View style={styles.welcome}>
           <Text style={styles.dateText}>{today}</Text>
-          <Text style={styles.greetText}>Namaste, Pokhara</Text>
+          <Text style={[styles.greetText, { fontSize: isCompact ? 25 : 30 }]}>Namaste, Pokhara</Text>
         </View>
 
         {/* Search */}
@@ -120,16 +168,24 @@ export default function HomeScreen({ navigation }: any) {
         {/* Notices horizontal scroll */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Suchana <Text style={styles.sectionSub}>/ Notices</Text></Text>
-          <TouchableOpacity><Text style={styles.viewAll}>View All</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => runUiAction('notices', () => uiActionAPI.getNotices(), 'Notices refreshed')}>
+            <Text style={styles.viewAll}>View All</Text>
+          </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noticesRow}>
           {NOTICES.map((n, i) => (
-            <TouchableOpacity key={n} style={styles.noticeItem}>
-              <View style={[styles.noticeCircle, i === 0 && styles.noticeCircleUrgent]}>
+            <TouchableOpacity key={n} style={[styles.noticeItem, { width: isVeryCompact ? 62 : 72 }]}>
+              <View
+                style={[
+                  styles.noticeCircle,
+                  { width: isVeryCompact ? 62 : 72, height: isVeryCompact ? 62 : 72, borderRadius: isVeryCompact ? 31 : 36 },
+                  i === 0 && styles.noticeCircleUrgent,
+                ]}
+              >
                 <View style={styles.noticeInner}>
                   <MaterialIcons
                     name={i === 0 ? 'campaign' : i === 1 ? 'construction' : i === 2 ? 'local-hospital' : i === 3 ? 'celebration' : 'landscape'}
-                    size={24}
+                    size={isVeryCompact ? 20 : 24}
                     color={i === 0 ? Colors.secondary : Colors.primary}
                   />
                 </View>
@@ -140,7 +196,7 @@ export default function HomeScreen({ navigation }: any) {
         </ScrollView>
 
         {/* Weather + Ward bento */}
-        <View style={styles.bentoRow}>
+        <View style={[styles.bentoRow, isCompact && { flexDirection: 'column' }]}>
           {/* Weather */}
           <View style={styles.weatherCard}>
             <LinearGradient
@@ -151,13 +207,13 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.weatherBadge}>
               <Text style={styles.weatherBadgeText}>Atmosphere Today</Text>
             </View>
-            <View style={styles.weatherMain}>
-              <MaterialIcons name="wb-sunny" size={44} color="#fff" />
+            <View style={[styles.weatherMain, isCompact && { flexWrap: 'wrap' }]}>
+              <MaterialIcons name="wb-sunny" size={isCompact ? 36 : 44} color="#fff" />
               <View>
-                <Text style={styles.tempText}>24°C</Text>
+                <Text style={[styles.tempText, { fontSize: isCompact ? 28 : 32 }]}>24°C</Text>
                 <Text style={styles.condText}>Mostly Sunny · Pokhara-6</Text>
               </View>
-              <View style={styles.aqiBox}>
+              <View style={[styles.aqiBox, isCompact && { marginLeft: 0, marginTop: 8 }]}> 
                 <Text style={styles.aqiLabel}>AQI Index</Text>
                 <Text style={styles.aqiNum}>42</Text>
                 <Text style={styles.aqiState}>Excellent</Text>
@@ -180,7 +236,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
 
           {/* Ward Card */}
-          <View style={styles.wardCard}>
+          <View style={[styles.wardCard, isCompact && { minHeight: 160 }]}>
             <View style={styles.wardTop}>
               <View style={styles.wardIcon}>
                 <MaterialIcons name="location-on" size={22} color={Colors.primary} />
@@ -191,7 +247,10 @@ export default function HomeScreen({ navigation }: any) {
             </View>
             <Text style={styles.wardTitle}>Ward Presence</Text>
             <Text style={styles.wardDesc}>Your local representatives are active. Check ward progress.</Text>
-            <TouchableOpacity style={styles.wardBtn}>
+            <TouchableOpacity
+              style={styles.wardBtn}
+              onPress={() => runUiAction('ward_map', () => uiActionAPI.getWardMap(citizen?.ward_code), 'Ward data loaded')}
+            >
               <Text style={styles.wardBtnText}>Open Ward Map</Text>
               <MaterialIcons name="arrow-forward" size={14} color={Colors.primary} />
             </TouchableOpacity>
@@ -201,11 +260,13 @@ export default function HomeScreen({ navigation }: any) {
         {/* Pokhara Samachar */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pokhara Samachar <Text style={styles.sectionSub}>/ Top 5</Text></Text>
-          <TouchableOpacity><Text style={styles.viewAll}>Digital Edition</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => runUiAction('news', () => uiActionAPI.getNews(), 'News synced')}>
+            <Text style={styles.viewAll}>Digital Edition</Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity activeOpacity={0.92} style={styles.heroNewsCard}>
-          <Image source={{ uri: NEWS_ITEMS[0].image }} style={styles.heroNewsImage} />
+          <Image source={{ uri: NEWS_ITEMS[0].image }} style={[styles.heroNewsImage, { height: isCompact ? 180 : 200 }]} />
           <View style={styles.heroNewsOverlay}>
             <View style={styles.heroTagWrap}>
               <Text style={styles.heroTag}>{NEWS_ITEMS[0].tag}</Text>
@@ -236,8 +297,22 @@ export default function HomeScreen({ navigation }: any) {
           {SERVICES.map((s) => (
             <TouchableOpacity
               key={s.label}
-              style={styles.serviceCard}
-              onPress={() => navigation.navigate(s.screen)}
+              style={[styles.serviceCard, { width: isCompact ? '100%' : '48.5%', height: isCompact ? 118 : 140 }]}
+              onPress={async () => {
+                if (s.label === 'Pay Tax') {
+                  await runUiAction('pay_tax', () => uiActionAPI.initiateTaxPayment({ tax_type: 'PROPERTY' }), 'Tax payment initiated');
+                  return;
+                }
+                if (s.label === 'Water Bill') {
+                  await runUiAction('water_bill', () => uiActionAPI.initiateWaterBillPayment({}), 'Water payment initiated');
+                  return;
+                }
+                if (s.label === 'NEA Pay') {
+                  await runUiAction('electric_bill', () => uiActionAPI.initiateElectricityPayment({}), 'Electricity payment initiated');
+                  return;
+                }
+                navigation.navigate(s.screen);
+              }}
               activeOpacity={0.8}
             >
               <MaterialIcons name={s.icon as any} size={28} color={Colors.primary} />
@@ -265,6 +340,13 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* PRATIBIMBA Stats */}
+        <View style={styles.healthPill}>
+          <MaterialIcons name={dbConnected ? 'cloud-done' : 'cloud-off'} size={14} color={dbConnected ? Colors.success : Colors.secondary} />
+          <Text style={[styles.healthPillText, { color: dbConnected ? Colors.success : Colors.secondary }]}>
+            {dbConnected ? 'Database Connected' : 'Database Offline'}
+          </Text>
+        </View>
+
         {stats && (
           <View style={styles.statsCard}>
             <Text style={styles.statsTitle}>🔒 PRATIBIMBA Live</Text>
@@ -290,10 +372,20 @@ export default function HomeScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Emergency FAB */}
-      <TouchableOpacity style={styles.fab}>
-        <MaterialIcons name="sos" size={22} color="#fff" />
-        <Text style={styles.fabText}>Emergency</Text>
+      <TouchableOpacity
+        style={[styles.fab, { bottom: insets.bottom + (isCompact ? 76 : 88), right: isCompact ? 12 : 18 }]}
+        onPress={() => runUiAction('sos', () => uiActionAPI.createEmergencyAlert({ ward_code: citizen?.ward_code, message: 'SOS triggered from app' }), 'Emergency alert sent')}
+      >
+        <MaterialIcons name="sos" size={isCompact ? 20 : 22} color="#fff" />
+        <Text style={[styles.fabText, { fontSize: isCompact ? 11 : 12 }]}>Emergency</Text>
       </TouchableOpacity>
+
+      {actionLoading && (
+        <View style={styles.actionOverlay}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.actionOverlayText}>Contacting server...</Text>
+        </View>
+      )}
 
     </SafeAreaView>
   );
@@ -471,6 +563,18 @@ const styles = StyleSheet.create({
   statItem: { alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: '900', color: Colors.primary },
   statLbl: { fontSize: 11, color: Colors.onSurfaceVariant, marginTop: 2 },
+  healthPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.surfaceContainerLow,
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  healthPillText: { fontSize: 11, fontWeight: '700' },
   fab: {
     position: 'absolute', bottom: 104, right: 18,
     backgroundColor: Colors.secondary,
@@ -479,4 +583,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full, ...Shadow.lg,
   },
   fabText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  actionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(247,250,249,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  actionOverlayText: { color: Colors.primary, fontSize: 13, fontWeight: '700' },
 });
