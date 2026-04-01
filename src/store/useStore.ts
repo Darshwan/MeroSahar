@@ -2,14 +2,28 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deleteSecureToken, getSecureToken, setSecureToken } from '../utils/secureStorage';
 
-interface Citizen {
+export type SessionType = 'CITIZEN' | 'TOURIST' | 'GUEST' | null;
+
+export interface CitizenData {
   nid: string;
-  citizenship_no: string;
   name: string;
+  name_ne?: string;
+  citizenship_no: string;
   ward_code: string;
+  ward_number?: number;
+  district?: string;
+  province?: string;
+  phone?: string;
+  gender?: string;
 }
 
-interface RequestRecord {
+export interface TouristData {
+  passport_no: string;
+  name: string;
+  nationality: string;
+}
+
+export interface RequestRecord {
   request_id: string;
   document_type: string;
   purpose: string;
@@ -25,7 +39,10 @@ interface AppState {
   isLoggedIn: boolean;
   isGuest: boolean;
   sessionRole: 'anonymous' | 'guest' | 'citizen';
-  citizen: Citizen | null;
+  sessionType: SessionType;
+  sessionToken: string | null;
+  citizen: CitizenData | null;
+  tourist: TouristData | null;
   token: string | null;
   language: string;
 
@@ -34,8 +51,11 @@ interface AppState {
 
   // Actions
   setLanguage: (lang: string) => void;
+  loginAsCitizen: (citizen: CitizenData, token: string) => Promise<void>;
+  loginAsTourist: (tourist: TouristData, token: string) => Promise<void>;
+  loginAsGuest: (token: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
-  login: (citizen: Citizen, token: string) => Promise<void>;
+  login: (citizen: CitizenData, token: string) => Promise<void>;
   logout: () => Promise<void>;
   addRequest: (req: RequestRecord) => Promise<void>;
   updateRequest: (requestId: string, updates: Partial<RequestRecord>) => Promise<void>;
@@ -48,7 +68,10 @@ export const useStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
   isGuest: false,
   sessionRole: 'anonymous',
+  sessionType: null,
+  sessionToken: null,
   citizen: null,
+  tourist: null,
   token: null,
   language: 'ne', // default Nepali
   myRequests: [],
@@ -58,38 +81,102 @@ export const useStore = create<AppState>((set, get) => ({
     AsyncStorage.setItem('app_language', lang);
   },
 
-  continueAsGuest: async () => {
-    await AsyncStorage.setItem('guest_mode', '1');
-    set({
-      isGuest: true,
-      isLoggedIn: false,
-      sessionRole: 'guest',
-      citizen: null,
-      token: null,
-    });
-  },
+  loginAsCitizen: async (citizen, token) => {
+    await Promise.all([
+      setSecureToken(token),
+      AsyncStorage.multiSet([
+        ['session_token', token],
+        ['session_type', 'CITIZEN'],
+        ['citizen_data', JSON.stringify(citizen)],
+      ]),
+      AsyncStorage.multiRemove(['guest_mode', 'tourist_data']),
+    ]);
 
-  login: async (citizen, token) => {
-    await setSecureToken(token);
-    await AsyncStorage.setItem('citizen_data', JSON.stringify(citizen));
-    await AsyncStorage.removeItem('guest_mode');
     set({
       isLoggedIn: true,
       isGuest: false,
       sessionRole: 'citizen',
+      sessionType: 'CITIZEN',
+      sessionToken: token,
       citizen,
+      tourist: null,
       token,
     });
   },
 
+  loginAsTourist: async (tourist, token) => {
+    await Promise.all([
+      setSecureToken(token),
+      AsyncStorage.multiSet([
+        ['session_token', token],
+        ['session_type', 'TOURIST'],
+        ['tourist_data', JSON.stringify(tourist)],
+      ]),
+      AsyncStorage.multiRemove(['guest_mode', 'citizen_data']),
+    ]);
+
+    set({
+      isLoggedIn: true,
+      isGuest: false,
+      sessionRole: 'guest',
+      sessionType: 'TOURIST',
+      sessionToken: token,
+      tourist,
+      citizen: null,
+      token,
+    });
+  },
+
+  loginAsGuest: async (token) => {
+    await Promise.all([
+      AsyncStorage.multiSet([
+        ['session_token', token],
+        ['session_type', 'GUEST'],
+        ['guest_mode', '1'],
+      ]),
+      AsyncStorage.multiRemove(['citizen_data', 'tourist_data']),
+      deleteSecureToken(),
+    ]);
+
+    set({
+      isGuest: true,
+      isLoggedIn: false,
+      sessionRole: 'guest',
+      sessionType: 'GUEST',
+      sessionToken: token,
+      citizen: null,
+      tourist: null,
+      token: null,
+    });
+  },
+
+  continueAsGuest: async () => {
+    const generatedToken = `guest-${Date.now()}`;
+    await get().loginAsGuest(generatedToken);
+  },
+
+  login: async (citizen, token) => {
+    await get().loginAsCitizen(citizen, token);
+  },
+
   logout: async () => {
     await deleteSecureToken();
-    await AsyncStorage.multiRemove(['citizen_data', 'guest_mode', 'my_requests']);
+    await AsyncStorage.multiRemove([
+      'session_token',
+      'session_type',
+      'citizen_data',
+      'tourist_data',
+      'guest_mode',
+      'my_requests',
+    ]);
     set({
       isLoggedIn: false,
       isGuest: false,
       sessionRole: 'anonymous',
+      sessionType: null,
+      sessionToken: null,
       citizen: null,
+      tourist: null,
       token: null,
       myRequests: [],
     });
@@ -140,24 +227,34 @@ export const useStore = create<AppState>((set, get) => ({
 
   loadFromStorage: async () => {
     try {
-      const [token, citizenStr, requestsStr, lang, guestMode] = await Promise.all([
+      const [secureToken, sessionToken, sessionTypeRaw, citizenStr, touristStr, requestsStr, lang, guestMode] = await Promise.all([
         getSecureToken(),
+        AsyncStorage.getItem('session_token'),
+        AsyncStorage.getItem('session_type'),
         AsyncStorage.getItem('citizen_data'),
+        AsyncStorage.getItem('tourist_data'),
         AsyncStorage.getItem('my_requests'),
         AsyncStorage.getItem('app_language'),
         AsyncStorage.getItem('guest_mode'),
       ]);
 
       const citizen = citizenStr ? JSON.parse(citizenStr) : null;
-      const isCitizenSession = !!token && !!citizen;
+      const tourist = touristStr ? JSON.parse(touristStr) : null;
+      const token = secureToken || sessionToken;
+      const sessionType = (sessionTypeRaw as SessionType) || null;
+
+      const isCitizenSession = (sessionType === 'CITIZEN' && !!token && !!citizen) || (!!token && !!citizen);
       const isGuestSession = !isCitizenSession && guestMode === '1';
 
       set({
+        sessionToken,
+        sessionType,
         token,
         isLoggedIn: isCitizenSession,
         isGuest: isGuestSession,
         sessionRole: isCitizenSession ? 'citizen' : (isGuestSession ? 'guest' : 'anonymous'),
         citizen,
+        tourist,
         myRequests: requestsStr ? JSON.parse(requestsStr) : [],
         language: lang || 'ne',
         isHydrated: true,

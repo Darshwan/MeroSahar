@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, ScrollView, SafeAreaView,
+  TextInput, ScrollView,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -110,7 +110,7 @@ export default function RequestScreen({ navigation }: any) {
 
   if (!isLoggedIn || !citizen) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Request Document</Text>
           <Text style={styles.headerSub}>सिफारिस अनुरोध</Text>
@@ -122,12 +122,12 @@ export default function RequestScreen({ navigation }: any) {
             Please login as a verified citizen to submit municipal document requests.
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Request Document</Text>
         <Text style={styles.headerSub}>सिफारिस अनुरोध</Text>
@@ -229,7 +229,7 @@ export default function RequestScreen({ navigation }: any) {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, RefreshControl,
+  ScrollView, RefreshControl,
   ActivityIndicator, TextInput, Modal,
   KeyboardAvoidingView, Platform, useWindowDimensions,
 } from 'react-native';
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { citizenAPI } from '../api/client';
+import HamburgerMenu from '../components/Hamburger';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export default function SewaScreen({ navigation }: any) {
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [queueService, setQueueService]     = useState('SIFARIS');
   const [bookingQueue, setBookingQueue]     = useState(false);
+  const [menuOpen, setMenuOpen]             = useState(false);
 
   // ── Load all data ───────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -211,24 +213,29 @@ export default function SewaScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={{ color: Colors.onSurfaceVariant, marginTop: 12, fontSize: 13 }}>
             Loading Sewa data...
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: isCompact ? 14 : 20 }]}> 
-        <View>
-          <Text style={styles.headerSub}>Digital Governance</Text>
-          <Text style={[styles.headerTitle, { fontSize: isCompact ? 22 : 26 }]}>Pokhara Sewa Kendra</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
+            <MaterialIcons name="menu" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerSub}>Digital Governance</Text>
+            <Text style={[styles.headerTitle, { fontSize: isCompact ? 22 : 26 }]}>Pokhara Sewa Kendra</Text>
+          </View>
         </View>
         <View style={styles.wardChip}>
           <MaterialIcons name="location-on" size={12} color={Colors.onPrimaryFixedVariant} />
@@ -641,13 +648,21 @@ export default function SewaScreen({ navigation }: any) {
         </View>
       </Modal>
 
-    </SafeAreaView>
+      <HamburgerMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navigation={navigation}
+      />
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:           { flex: 1, backgroundColor: Colors.background },
   header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: Colors.outlineVariant },
+  headerLeft:          { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  menuBtn:             { width: 36, height: 36, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceContainerLow },
   headerSub:           { fontSize: 10, fontWeight: '700', color: Colors.primary, opacity: 0.6, letterSpacing: 1.5, textTransform: 'uppercase' },
   headerTitle:         { fontSize: 26, fontWeight: '900', color: Colors.primary, letterSpacing: -0.5 },
   wardChip:            { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primaryFixed, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full },

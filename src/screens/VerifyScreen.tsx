@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, SafeAreaView, ScrollView, ActivityIndicator,
+  TextInput, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Camera, CameraView, BarcodeScanningResult } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -92,7 +92,7 @@ export default function VerifyScreen() {
   const cfg = result ? STATUS_UI[result.status] || STATUS_UI.NOT_FOUND : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Verify Document</Text>
         <Text style={styles.headerSub}>कागज प्रमाणीकरण</Text>
@@ -245,7 +245,7 @@ export default function VerifyScreen() {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, Alert,
+  ActivityIndicator, Alert,
   Dimensions,
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
@@ -62,7 +62,7 @@ export default function OCRScanScreen({ onResult, onClose }: Props) {
 
       // Call PRATIBIMBA backend OCR endpoint
       // The backend uses the document image to extract fields
-      const response = await fetch('http://192.168.1.100:8080/citizen/ocr', {
+      const response = await fetch('http://192.168.100.44:8080/citizen/ocr', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ image_base64: resized.base64 }),
@@ -110,7 +110,7 @@ export default function OCRScanScreen({ onResult, onClose }: Props) {
 
   if (!hasPerm) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.noPerm}>
           <MaterialIcons name="photo-camera" size={48} color={Colors.outline} />
           <Text style={styles.noPermTitle}>Camera Required</Text>
@@ -121,12 +121,12 @@ export default function OCRScanScreen({ onResult, onClose }: Props) {
             <Text style={styles.closeBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.backBtn}>
@@ -229,7 +229,7 @@ export default function OCRScanScreen({ onResult, onClose }: Props) {
           )}
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

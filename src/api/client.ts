@@ -4,10 +4,11 @@ import Constants from 'expo-constants';
 import { deleteSecureToken } from '../utils/secureStorage';
 import { getSecureToken } from '../utils/secureStorage';
 
-// Prefer Expo config (`expo.extra.apiBaseUrl`) and trim trailing slashes.
+// Prefer env first, then Expo config (`expo.extra.apiBaseUrl`) and trim trailing slashes.
+const envBase = String(process.env.EXPO_PUBLIC_API_URL || '').trim();
 const configBase = String(Constants.expoConfig?.extra?.apiBaseUrl || '').trim();
-const fallbackBase = 'http://192.168.1.100:8080';
-export const API_BASE = (configBase || fallbackBase).replace(/\/+$/, '');
+const fallbackBase = 'http://192.168.100.44:8080';
+export const API_BASE = (envBase || configBase || fallbackBase).replace(/\/+$/, '');
 export const REQUIRE_LIVE_BACKEND = Constants.expoConfig?.extra?.requireLiveBackend !== false;
 
 const api = axios.create({
@@ -34,18 +35,40 @@ function normalizeApiError(error: any, fallbackMessage = 'Request failed') {
   };
 }
 
-// Auto-attach JWT token to every request
+// Auto-attach JWT token + session token to every request.
 api.interceptors.request.use(async (config) => {
-  const token = await getSecureToken();
+  const [token, sessionToken] = await Promise.all([
+    getSecureToken(),
+    AsyncStorage.getItem('session_token'),
+  ]);
+
+  config.headers = config.headers || {};
+
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
+
+  if (sessionToken) {
+    (config.headers as any)['X-Session-ID'] = sessionToken;
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Normalize offline/unreachable backend errors without throwing.
+    if (!error?.response) {
+      return Promise.resolve({
+        data: {
+          success: false,
+          offline: true,
+          message: `Cannot reach server at ${API_BASE}. Check your WiFi and .env file.`,
+        },
+      });
+    }
+
     // Hard-expired sessions should be cleared to avoid ghost-auth state.
     if (error?.response?.status === 401) {
       await deleteSecureToken();
@@ -165,6 +188,14 @@ export const verifyAPI = {
   },
 };
 
+// ── TOURIST API ───────────────────────────────────────────────
+
+export const touristAPI = {
+  submitRequest: (payload: any) => api.post('/tourist/request', payload).then((r) => r.data),
+  getRequests: (passportNo: string) =>
+    api.get(`/tourist/requests/${passportNo}`).then((r) => r.data),
+};
+
 // ── UI ACTION API (mapped from current mobile UI) ────────────
 
 export const uiActionAPI = {
@@ -244,6 +275,45 @@ export const uiActionAPI = {
 // ── AUTH API ──────────────────────────────────────────────────
 
 export const authAPI = {
+
+  // Citizen login using unified auth API.
+  loginCitizenV2: async (params: {
+    id_type: 'NID' | 'CITIZENSHIP' | 'DRIVING_LICENSE';
+    primary_value: string;
+    secondary_value?: string;
+    device_info?: string;
+  }) => {
+    const res = await api.post('/auth/citizen/login', params);
+    return res.data;
+  },
+
+  // Tourist login using unified auth API.
+  loginTourist: async (params: {
+    passport_no: string;
+    full_name?: string;
+    nationality?: string;
+    dob?: string;
+    device_info?: string;
+    ocr_data?: string;
+  }) => {
+    const res = await api.post('/auth/tourist/login', params);
+    return res.data;
+  },
+
+  // Start guest session.
+  startGuest: async () => {
+    const res = await api.post('/auth/guest', {});
+    return res.data;
+  },
+
+  // OCR processing via unified auth API.
+  processOCR: async (imageBase64: string, documentType: string) => {
+    const res = await api.post('/auth/ocr', {
+      image_base64: imageBase64,
+      document_type: documentType,
+    });
+    return res.data;
+  },
 
   scanIdentityDocument: async (documentType: 'nid' | 'citizenship' | 'license', imageUri: string) => {
     const formData = new FormData();
@@ -426,6 +496,16 @@ export const systemAPI = {
       }
     }
   },
+};
+
+// Health check helper for quick backend diagnostics.
+export const healthCheck = async (): Promise<boolean> => {
+  try {
+    const res = await axios.get(`${API_BASE}/health`, { timeout: 5000 });
+    return res.data?.status === 'operational' || res.data?.success === true;
+  } catch {
+    return false;
+  }
 };
 
 export default api;

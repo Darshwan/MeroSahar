@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator,
   Switch,
   useWindowDimensions,
 } from 'react-native';
@@ -10,6 +10,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { citizenAPI } from '../api/client';
+import HamburgerMenu from '../components/Hamburger';
 
 export default function ProfileScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
@@ -23,6 +24,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [jobs, setJobs]               = useState<any[]>([]);
   const [loading, setLoading]         = useState(true);
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const [menuOpen, setMenuOpen]       = useState(false);
 
   // Load profile + documents from PRATIBIMBA
   useEffect(() => {
@@ -72,16 +74,24 @@ export default function ProfileScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <View style={[styles.topBar, { paddingHorizontal: isCompact ? 12 : 16 }]}>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
+          <MaterialIcons name="menu" size={22} color={Colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Profile</Text>
+        <View style={{ width: 36 }} />
+      </View>
+
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingHorizontal: isCompact ? 12 : 16, paddingBottom: isCompact ? 120 : 150 }]}
         showsVerticalScrollIndicator={false}
@@ -296,12 +306,21 @@ export default function ProfileScreen({ navigation }: any) {
         <Text style={styles.versionSub}>Nepal Electronic Transactions Act 2063</Text>
 
       </ScrollView>
-    </SafeAreaView>
+
+      <HamburgerMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navigation={navigation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: Colors.background },
+  topBar:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: Colors.outlineVariant, backgroundColor: Colors.background },
+  menuBtn:            { width: 36, height: 36, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceContainerLow },
+  topBarTitle:        { fontSize: 18, fontWeight: '800', color: Colors.primary },
   scroll:             { padding: 16, paddingBottom: 48, gap: 14 },
   profileHeader:      { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: Colors.surfaceContainerLowest, borderRadius: Radius.xl, padding: 16, ...Shadow.sm },
   avatarWrap:         { position: 'relative' },

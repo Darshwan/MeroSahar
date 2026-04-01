@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, RefreshControl, Modal,
+  ScrollView, RefreshControl, Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -84,7 +84,7 @@ export default function TrackScreen() {
 
   if (!isLoggedIn || !citizen) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Track Requests</Text>
           <Text style={styles.headerSub}>Citizen access only</Text>
@@ -94,13 +94,13 @@ export default function TrackScreen() {
           <Text style={styles.emptyTitle}>Sign in as Citizen</Text>
           <Text style={styles.emptySub}>Request tracking is available only after verified citizen login.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (myRequests.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Track Requests</Text>
           <Text style={styles.headerSub}>तपाईंका अनुरोधहरू</Text>
@@ -110,12 +110,12 @@ export default function TrackScreen() {
           <Text style={styles.emptyTitle}>No Requests Yet</Text>
           <Text style={styles.emptySub}>Submit a document request to start tracking it here.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Track Requests</Text>
         <Text style={styles.headerSub}>
@@ -231,7 +231,7 @@ export default function TrackScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

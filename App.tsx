@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TransitionPresets } from '@react-navigation/stack';
@@ -21,11 +21,13 @@ import RequestScreen   from './src/screens/RequestScreen';
 import TrackScreen     from './src/screens/TrackScreen';
 import VerifyScreen    from './src/screens/VerifyScreen';
 import ProfileScreen   from './src/screens/ProfileScreen';
+import { CustomDrawer } from './src/components/CustomDrawer';
 
 import { Colors } from './src/constants/theme';
 import { useStore } from './src/store/useStore';
 import { NotificationService } from './src/utils/notifications';
 import { startNetworkMonitor } from './src/utils/offlineQueue';
+import { DrawerContext } from './src/context/DrawerContext';
 
 // Configure foreground notification behavior for Expo's current NotificationBehavior type.
 Notifications.setNotificationHandler({
@@ -42,7 +44,7 @@ const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 // ── Bottom Tab Navigator (shown after login) ──────────────────
-function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citizen' }) {
+function MainTabs({ sessionRole, isDrawerOpen, openDrawer, closeDrawer, navigation }: { sessionRole: 'anonymous' | 'guest' | 'citizen'; isDrawerOpen: boolean; openDrawer: () => void; closeDrawer: () => void; navigation: any }) {
   const isCitizen = sessionRole === 'citizen';
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -53,110 +55,125 @@ function MainTabs({ sessionRole }: { sessionRole: 'anonymous' | 'guest' | 'citiz
   const labelSize = isCompact ? 9 : 10;
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: 'rgba(255,255,255,0.95)',
-          borderTopColor: '#e6e9e8',
-          borderTopWidth: 1,
-          height: tabBarHeight,
-          paddingBottom: Math.max(insets.bottom, isCompact ? 8 : 10),
-          paddingTop: isCompact ? 6 : 8,
-        },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.outline,
-        tabBarLabelStyle: {
-          fontSize: labelSize,
-          fontWeight: '700',
-          letterSpacing: isCompact ? 0.4 : 0.8,
-          textTransform: 'uppercase',
-        },
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons
-              name={focused ? 'home' : 'home'}
-              size={iconSize} color={color}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Sewa"
-        component={SewaScreen}
-        options={{
-          tabBarLabel: 'Sewa',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="account-balance" size={iconSize} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Explore"
-        component={CitizenPortalScreen}
-        options={{
-          tabBarLabel: 'Pokhara',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="location-city" size={iconSize} color={color} />
-          ),
-        }}
-      />
-      {isCitizen && (
+    <DrawerContext.Provider value={{ isDrawerOpen, openDrawer, closeDrawer }}>
+      <>
+        <Tab.Navigator
+          screenOptions={{
+            headerShown: false,
+            tabBarStyle: {
+              backgroundColor: 'rgba(255,255,255,0.95)',
+              borderTopColor: '#e6e9e8',
+              borderTopWidth: 1,
+              height: tabBarHeight,
+              paddingBottom: Math.max(insets.bottom, isCompact ? 8 : 10),
+              paddingTop: isCompact ? 6 : 8,
+            },
+            tabBarItemStyle: {
+              flex: 1,
+            },
+            tabBarIconStyle: {
+              alignSelf: 'center',
+            },
+            tabBarActiveTintColor: Colors.primary,
+            tabBarInactiveTintColor: Colors.outline,
+            tabBarLabelStyle: {
+              fontSize: labelSize,
+              fontWeight: '700',
+              letterSpacing: isCompact ? 0.4 : 0.8,
+              textTransform: 'uppercase',
+            },
+          }}
+        >
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{
+            tabBarLabel: 'Home',
+            tabBarIcon: ({ color, focused }) => (
+              <MaterialIcons
+                name={focused ? 'home' : 'home'}
+                size={iconSize} color={color}
+              />
+            ),
+          }}
+          listeners={{
+            tabPress: (e) => {
+              // Pass drawer handlers to HomeScreen
+            },
+          }}
+        />
+        <Tab.Screen
+          name="Sewa"
+          component={SewaScreen}
+          options={{
+            tabBarLabel: 'Sewa',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="account-balance" size={iconSize} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Explore"
+          component={CitizenPortalScreen}
+          options={{
+            tabBarLabel: 'Pokhara',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="location-city" size={iconSize} color={color} />
+            ),
+          }}
+        />
         <Tab.Screen
           name="Request"
           component={RequestScreen}
           options={{
-            tabBarLabel: 'Sifaris',
-            tabBarIcon: ({ color }) => (
-              <MaterialIcons name="description" size={iconSize} color={color} />
-            ),
+            tabBarButton: () => null,
           }}
         />
-      )}
-      {isCitizen && (
+        {isCitizen && (
+          <Tab.Screen
+            name="Track"
+            component={TrackScreen}
+            options={{
+              tabBarLabel: 'Track',
+              tabBarIcon: ({ color }) => (
+                <MaterialIcons name="track-changes" size={iconSize} color={color} />
+              ),
+            }}
+          />
+        )}
         <Tab.Screen
-          name="Track"
-          component={TrackScreen}
+          name="Verify"
+          component={VerifyScreen}
           options={{
-            tabBarLabel: 'Track',
+            tabBarLabel: 'Verify',
             tabBarIcon: ({ color }) => (
-              <MaterialIcons name="track-changes" size={iconSize} color={color} />
+              <MaterialIcons name="qr-code-scanner" size={iconSize} color={color} />
             ),
           }}
         />
-      )}
-      <Tab.Screen
-        name="Verify"
-        component={VerifyScreen}
-        options={{
-          tabBarLabel: 'Verify',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="qr-code-scanner" size={iconSize} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <MaterialIcons name="person" size={iconSize} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="person" size={iconSize} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+      <CustomDrawer isOpen={isDrawerOpen} onClose={closeDrawer} navigation={navigation} />
+      </>
+    </DrawerContext.Provider>
   );
 }
 
 export default function App() {
   const { isHydrated, sessionRole, loadFromStorage } = useStore();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const openDrawer = () => setIsDrawerOpen(true);
+  const closeDrawer = () => setIsDrawerOpen(false);
 
   useEffect(() => {
     loadFromStorage();
@@ -223,7 +240,15 @@ export default function App() {
             ) : (
               // ── Main App ──────────────────────────────────────
               <Stack.Screen name="Main">
-                {() => <MainTabs sessionRole={sessionRole} />}
+                {({ navigation: navProp }) => (
+                  <MainTabs 
+                    sessionRole={sessionRole} 
+                    isDrawerOpen={isDrawerOpen}
+                    openDrawer={openDrawer}
+                    closeDrawer={closeDrawer}
+                    navigation={navProp}
+                  />
+                )}
               </Stack.Screen>
             )}
           </Stack.Navigator>

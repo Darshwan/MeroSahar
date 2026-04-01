@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, RefreshControl,
+  ScrollView, RefreshControl,
   ActivityIndicator, TextInput, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { citizenAPI, statsAPI } from '../api/client';
+import HamburgerMenu from '../components/Hamburger';
 
 export default function CitizenPortalScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -26,6 +27,7 @@ export default function CitizenPortalScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading]     = useState(true);
   const [voteChoice, setVoteChoice] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen]     = useState(false);
 
   const loadData = async () => {
     try {
@@ -82,22 +84,27 @@ export default function CitizenPortalScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={[styles.header, { paddingHorizontal: isCompact ? 14 : 20 }]}> 
-        <View>
-          <Text style={[styles.headerTitle, { fontSize: isCompact ? 28 : 34 }]}>Citizen Power</Text>
-          <Text style={styles.headerDesc}>
-            Digital transparency &amp; direct civic action
-          </Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
+            <MaterialIcons name="menu" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.headerTitle, { fontSize: isCompact ? 28 : 34 }]}>Citizen Power</Text>
+            <Text style={styles.headerDesc}>
+              Digital transparency &amp; direct civic action
+            </Text>
+          </View>
         </View>
         <View style={styles.wardBadge}>
           <MaterialIcons name="location-on" size={12} color={Colors.onPrimaryFixedVariant} />
@@ -302,13 +309,21 @@ export default function CitizenPortalScreen({ navigation }: any) {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+
+      <HamburgerMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navigation={navigation}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container:           { flex: 1, backgroundColor: Colors.surface },
   header:              { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', padding: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.outlineVariant },
+  headerLeft:          { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  menuBtn:             { width: 36, height: 36, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceContainerLow },
   headerTitle:         { fontSize: 34, fontWeight: '900', color: Colors.primary, letterSpacing: -0.8 },
   headerDesc:          { fontSize: 13, color: Colors.onSurfaceVariant, marginTop: 4 },
   wardBadge:           { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primaryFixed, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full },

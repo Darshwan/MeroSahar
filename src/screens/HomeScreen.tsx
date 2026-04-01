@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, SafeAreaView, TextInput, RefreshControl, Image, ActivityIndicator, useWindowDimensions,
+  ScrollView, TextInput, RefreshControl, Image, ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { statsAPI, systemAPI, uiActionAPI } from '../api/client';
+import HamburgerMenu from '../components/Hamburger';
 
 const SERVICES = [
   { icon: 'receipt-long', label: 'Pay Tax',    screen: 'Request' },
@@ -60,6 +61,7 @@ export default function HomeScreen({ navigation }: any) {
   const { width } = useWindowDimensions();
   const isCompact = width < 380;
   const isVeryCompact = width < 350;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { citizen } = useStore();
   const [stats, setStats] = useState<any>(null);
@@ -115,12 +117,12 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => { loadStats(); }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
 
       {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.topLeft}>
-          <TouchableOpacity style={styles.menuBtn}>
+          <TouchableOpacity style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
             <MaterialIcons name="menu" size={24} color={Colors.primary} />
           </TouchableOpacity>
           <Text style={styles.appName}>Hamro Pokhara</Text>
@@ -387,7 +389,13 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       )}
 
-    </SafeAreaView>
+      <HamburgerMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navigation={navigation}
+      />
+
+    </View>
   );
 }
 
