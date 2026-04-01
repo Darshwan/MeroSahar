@@ -196,6 +196,29 @@ export const touristAPI = {
     api.get(`/tourist/requests/${passportNo}`).then((r) => r.data),
 };
 
+export const newsAPI = {
+  getWardNews: (wardCode: string, limit = 20) =>
+    api.get(`/news/${wardCode}?limit=${limit}`).then((r) => r.data),
+  getWardInfo: (wardCode: string) =>
+    api.get(`/ward/${wardCode}`).then((r) => r.data),
+};
+
+export const sosAPI = {
+  sendSOS: (payload: {
+    citizen_nid?: string;
+    tourist_passport?: string;
+    session_type: string;
+    full_name: string;
+    phone?: string;
+    location_lat?: number;
+    location_lng?: number;
+    location_desc?: string;
+    ward_code?: string;
+    emergency_type: string;
+    message?: string;
+  }) => api.post('/sos', payload).then((r) => r.data),
+};
+
 // ── UI ACTION API (mapped from current mobile UI) ────────────
 
 export const uiActionAPI = {

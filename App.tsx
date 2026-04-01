@@ -22,6 +22,7 @@ import TrackScreen     from './src/screens/TrackScreen';
 import VerifyScreen    from './src/screens/VerifyScreen';
 import ProfileScreen   from './src/screens/ProfileScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
+import LangToggle from './src/components/LangToggle';
 
 import { Colors } from './src/constants/theme';
 import { useStore } from './src/store/useStore';
@@ -43,6 +44,25 @@ Notifications.setNotificationHandler({
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
 
+function GlobalLangToggle() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        bottom: insets.bottom + 92,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 999,
+      }}
+    >
+      <LangToggle />
+    </View>
+  );
+}
+
 // ── Bottom Tab Navigator (shown after login) ──────────────────
 function MainTabs({ sessionRole, isDrawerOpen, openDrawer, closeDrawer, navigation }: { sessionRole: 'anonymous' | 'guest' | 'citizen'; isDrawerOpen: boolean; openDrawer: () => void; closeDrawer: () => void; navigation: any }) {
   const isCitizen = sessionRole === 'citizen';
@@ -58,31 +78,39 @@ function MainTabs({ sessionRole, isDrawerOpen, openDrawer, closeDrawer, navigati
     <DrawerContext.Provider value={{ isDrawerOpen, openDrawer, closeDrawer }}>
       <>
         <Tab.Navigator
-          screenOptions={{
+          screenOptions={({ route }) => ({
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: 'rgba(255,255,255,0.95)',
-              borderTopColor: '#e6e9e8',
-              borderTopWidth: 1,
-              height: tabBarHeight,
-              paddingBottom: Math.max(insets.bottom, isCompact ? 8 : 10),
-              paddingTop: isCompact ? 6 : 8,
+              backgroundColor: '#ffffff',
+              borderTopWidth: 0,
+              elevation: 0,
+              shadowColor: '#003b5a',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.06,
+              shadowRadius: 16,
+              height: 68,
+              paddingBottom: 12,
+              paddingTop: 8,
+              paddingHorizontal: 8,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              position: 'absolute',
+            },
+            tabBarActiveTintColor: '#003b5a',
+            tabBarInactiveTintColor: '#9ca3af',
+            tabBarLabelStyle: {
+              fontSize: 10,
+              fontWeight: '600',
+              letterSpacing: 0.3,
+              marginTop: 2,
             },
             tabBarItemStyle: {
-              flex: 1,
+              borderRadius: 14,
+              marginHorizontal: 4,
+              paddingVertical: 2,
             },
-            tabBarIconStyle: {
-              alignSelf: 'center',
-            },
-            tabBarActiveTintColor: Colors.primary,
-            tabBarInactiveTintColor: Colors.outline,
-            tabBarLabelStyle: {
-              fontSize: labelSize,
-              fontWeight: '700',
-              letterSpacing: isCompact ? 0.4 : 0.8,
-              textTransform: 'uppercase',
-            },
-          }}
+            tabBarActiveBackgroundColor: 'rgba(0,59,90,0.06)',
+          })}
         >
         <Tab.Screen
           name="Home"
@@ -253,6 +281,7 @@ export default function App() {
             )}
           </Stack.Navigator>
         </NavigationContainer>
+        <GlobalLangToggle />
         <Toast />
       </SafeAreaProvider>
     </GestureHandlerRootView>
